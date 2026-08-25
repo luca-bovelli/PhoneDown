@@ -10,15 +10,18 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 jobs:
   # The fast lane. PhoneDownKit is pure Foundation, so the entire domain —
   # scheduling, accumulation, statistics — tests natively in seconds without
   # booting a simulator.
   #
-  # Failures are echoed into the job summary because there is no local Mac:
-  # the workflow log needs an authenticated download, but the job summary comes
-  # back through the public check-runs API. Without this a red build is opaque
-  # from the machine actually doing the work.
+  # On failure the compiler output is posted back as a commit comment. There is
+  # no local Mac and the workflow log needs an authenticated download, so
+  # without this a red build is opaque from the machine doing the work. Commit
+  # comments are readable through the public API.
   domain:
     name: Domain tests
     runs-on: macos-15
@@ -29,19 +32,28 @@ jobs:
         run: swift --version
 
       - name: Test PhoneDownKit
+        id: test
         run: |
           set -o pipefail
-          if ! swift test 2>&1 | tee /tmp/test.log; then
-            {
-              echo '### swift test failed'
-              echo '```'
-              grep -E 'error:|warning:|failed|Fatal' /tmp/test.log | head -60 || true
-              echo '```'
-              echo '<details><summary>tail</summary>'
-              echo '```'
-              tail -80 /tmp/test.log
-              echo '```'
-              echo '</details>'
-            } >> "$GITHUB_STEP_SUMMARY"
-            exit 1
-          fi
+          swift test 2>&1 | tee /tmp/test.log
+
+      - name: Report failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo '**CI failure — `swift test`**'
+            echo
+            echo '```'
+            grep -E 'error:' /tmp/test.log | head -40 || echo '(no error: lines)'
+            echo '```'
+            echo '<details><summary>tail</summary>'
+            echo
+            echo '```'
+            tail -60 /tmp/test.log
+            echo '```'
+            echo '</details>'
+          } > /tmp/body.md
+          gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/comments" \
+            -f body="$(cat /tmp/body.md)" --silent
