@@ -8,6 +8,10 @@ Single user, no accounts, no network, no sync. All data local.
 
 ## Status
 
+**Spike build.** Lock detection is being proved on a real device before
+anything is built on top of it — see [`docs/spike.md`](docs/spike.md) for how to
+run it and what the findings mean.
+
 MVP in progress. See [`phonedown-mvp-spec.md`](phonedown-mvp-spec.md) for scope
 and [`phonedown-full-spec.md`](phonedown-full-spec.md) for where it is going.
 
