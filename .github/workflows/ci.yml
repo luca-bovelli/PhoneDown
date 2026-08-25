@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The fast lane. PhoneDownKit is pure Foundation, so the entire domain —
+  # scheduling, accumulation, statistics — tests natively in seconds without
+  # booting a simulator. This gate catches almost everything, and catches it
+  # before any slow lane would start.
+  #
+  # The app build, snapshot rendering and unsigned-IPA jobs land here as soon as
+  # there is an app target to build. Adding them before then would mean pushing
+  # a workflow that is red by construction, and a red baseline teaches you to
+  # ignore the light.
+  domain:
+    name: Domain tests
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: swift --version
+
+      - name: Test PhoneDownKit
+        run: swift test

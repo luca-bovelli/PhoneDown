@@ -1,0 +1,10 @@
+.DS_Store
+*.xcodeproj/
+*.xcworkspace/
+!*.xcodeproj/project.pbxproj
+build/
+DerivedData/
+.build/
+*.ipa
+*.dSYM.zip
+Snapshots/__Failures__/
