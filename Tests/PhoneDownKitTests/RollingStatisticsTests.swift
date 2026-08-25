@@ -152,7 +152,7 @@ struct ChartWindowTests {
     @Test("Overriding to a different window marks the chart")
     func overrideMarks() {
         var chart = ChartWindow.inheriting(RollingWindow(days: 7))
-        chart.override(with: RollingWindow(days: 30), globalDefault: RollingWindow(days: 7))
+        chart.setWindow(RollingWindow(days: 30), globalDefault: RollingWindow(days: 7))
         #expect(chart.window.days == 30)
         #expect(chart.isOverridden)
     }
@@ -162,14 +162,14 @@ struct ChartWindowTests {
     @Test("Overriding to the default value is not an override")
     func overrideToDefaultIsNotAnOverride() {
         var chart = ChartWindow.inheriting(RollingWindow(days: 7))
-        chart.override(with: RollingWindow(days: 7), globalDefault: RollingWindow(days: 7))
+        chart.setWindow(RollingWindow(days: 7), globalDefault: RollingWindow(days: 7))
         #expect(chart.isOverridden == false)
     }
 
     @Test("A chart stops being marked when the global default moves to match it")
     func reconcileClearsStaleMarker() {
         var chart = ChartWindow.inheriting(RollingWindow(days: 7))
-        chart.override(with: RollingWindow(days: 30), globalDefault: RollingWindow(days: 7))
+        chart.setWindow(RollingWindow(days: 30), globalDefault: RollingWindow(days: 7))
         #expect(chart.isOverridden)
 
         chart.reconcile(withGlobalDefault: RollingWindow(days: 30))

@@ -18,11 +18,15 @@ private func date(_ iso: String) -> Date {
 @Suite("Block generation")
 struct BlockGeneratorTests {
 
-    @Test("A block draws block_hours x rate times", arguments: [
-        (0.5, 6), (1.0, 12), (2.0, 24), (2.25, 27), (4.0, 48),
-    ])
-    func drawCountMatchesRate(rate: Double, expected: Int) {
-        #expect(BlockGenerator.drawCount(hours: 12, rate: rate) == expected)
+    @Test("A block draws block_hours x rate times")
+    func drawCountMatchesRate() {
+        let cases: [(rate: Double, expected: Int)] = [
+            (0.5, 6), (1.0, 12), (2.0, 24), (2.25, 27), (4.0, 48),
+        ]
+        for (rate, expected) in cases {
+            #expect(BlockGenerator.drawCount(hours: 12, rate: rate) == expected,
+                    "rate \(rate)")
+        }
     }
 
     @Test("Every drawn time lands inside the block, and they come back sorted")
@@ -115,11 +119,15 @@ struct BlockGeneratorTests {
                 == date("2026-03-04T12:00:00Z"))
     }
 
-    @Test("Rate is clamped onto the slider's step grid", arguments: [
-        (0.1, 0.5), (0.5, 0.5), (2.0, 2.0), (2.3, 2.25), (2.4, 2.5), (4.0, 4.0), (9.9, 4.0),
-    ])
-    func rateNormalization(input: Double, expected: Double) {
-        #expect(abs(BlockGenerator.normalizedRate(input) - expected) < 0.0001)
+    @Test("Rate is clamped onto the slider's step grid")
+    func rateNormalization() {
+        let cases: [(input: Double, expected: Double)] = [
+            (0.1, 0.5), (0.5, 0.5), (2.0, 2.0), (2.3, 2.25), (2.4, 2.5), (4.0, 4.0), (9.9, 4.0),
+        ]
+        for (input, expected) in cases {
+            #expect(abs(BlockGenerator.normalizedRate(input) - expected) < 0.0001,
+                    "input \(input)")
+        }
     }
 
     @Test("The same seed reproduces the same block")

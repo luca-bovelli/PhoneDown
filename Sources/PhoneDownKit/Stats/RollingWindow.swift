@@ -34,7 +34,7 @@ public struct ChartWindow: Codable, Equatable, Sendable {
         ChartWindow(window: global, isOverridden: false)
     }
 
-    public mutating func override(with window: RollingWindow, globalDefault: RollingWindow) {
+    public mutating func setWindow(_ window: RollingWindow, globalDefault: RollingWindow) {
         self.window = window
         self.isOverridden = window != globalDefault
     }
