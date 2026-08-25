@@ -55,7 +55,7 @@ final class LockSignalMonitor {
     // MARK: - Darwin
 
     private func registerDarwin(_ key: String, handler: @escaping (UInt64) -> Void) {
-        var token: Int32 = NOTIFY_TOKEN_INVALID
+        var token: Int32 = -1  // NOTIFY_TOKEN_INVALID
         // Delivered on a background queue: these fire at the instant the screen
         // goes dark, and hopping to main first would add scheduling latency to
         // the exact measurement being taken.
@@ -69,7 +69,7 @@ final class LockSignalMonitor {
             handler(state)
         }
 
-        if status == NOTIFY_STATUS_OK {
+        if status == 0 {  // NOTIFY_STATUS_OK
             tokens.append(token)
         } else {
             log.append(.keepAliveFailed, detail: "notify_register_dispatch(\(key)) status=\(status)")
