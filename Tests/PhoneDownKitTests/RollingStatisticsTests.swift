@@ -55,16 +55,21 @@ struct RollingStatisticsTests {
         #expect(average == nil)
     }
 
-    @Test("Rolling average produces one point per sample")
+    /// The window is half-open — `(date - window, date]`. A sample sitting
+    /// exactly on the trailing edge has aged out. Pinned explicitly because the
+    /// inclusive convention silently widens every window by one boundary
+    /// sample, which surfaces as a small persistent bias in every rolling line
+    /// rather than as an obvious break.
+    @Test("Rolling average produces one point per sample, over a half-open window")
     func rollingAverageShape() {
         let samples = [onDay(0, 10), onDay(1, 20), onDay(2, 30), onDay(3, 40)]
         let rolling = RollingStatistics.rollingAverage(of: samples, window: RollingWindow(days: 2))
 
         #expect(rolling.count == 4)
-        #expect(rolling[0].value == 10)              // just itself
-        #expect(rolling[1].value == 15)              // 10, 20
-        #expect(abs(rolling[2].value - 20) < 0.001)  // 10, 20, 30 — day 0 is exactly on the edge
-        #expect(rolling[3].value == 30)              // 20, 30, 40
+        #expect(rolling[0].value == 10)   // (day -2, day 0]  -> 10
+        #expect(rolling[1].value == 15)   // (day -1, day 1]  -> 10, 20
+        #expect(rolling[2].value == 25)   // (day  0, day 2]  -> 20, 30; day 0 has aged out
+        #expect(rolling[3].value == 35)   // (day  1, day 3]  -> 30, 40
     }
 
     /// Failures per day and failure proportion answer different questions. A
