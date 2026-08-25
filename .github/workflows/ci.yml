@@ -14,14 +14,13 @@ permissions:
   contents: write
 
 jobs:
-  # The fast lane. PhoneDownKit is pure Foundation, so the entire domain —
-  # scheduling, accumulation, statistics — tests natively in seconds without
-  # booting a simulator.
+  # The fast lane. PhoneDownKit is pure Foundation, so the whole domain —
+  # scheduling, accumulation, statistics, signal comparison — tests natively in
+  # seconds without booting a simulator.
   #
-  # On failure the compiler output is posted back as a commit comment. There is
-  # no local Mac and the workflow log needs an authenticated download, so
-  # without this a red build is opaque from the machine doing the work. Commit
-  # comments are readable through the public API.
+  # Failures post the compiler output back as a commit comment. There is no
+  # local Mac and workflow logs need an authenticated download, so without that
+  # a red build is opaque from the machine doing the work.
   domain:
     name: Domain tests
     runs-on: macos-15
@@ -32,28 +31,92 @@ jobs:
         run: swift --version
 
       - name: Test PhoneDownKit
-        id: test
         run: |
           set -o pipefail
-          swift test 2>&1 | tee /tmp/test.log
+          swift test --package-path PhoneDownKit 2>&1 | tee /tmp/build.log
 
       - name: Report failure
         if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
+        run: .github/report-failure.sh "domain tests"
+
+  # The slow lane. Builds the real app for the simulator, which is the only
+  # thing that compiles the Darwin notify calls, the audio session and the
+  # geofence — none of which the domain package touches.
+  app:
+    name: App build
+    runs-on: macos-15
+    needs: domain
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Build
         run: |
-          {
-            echo '**CI failure — `swift test`**'
-            echo
-            echo '```'
-            grep -E 'error:' /tmp/test.log | head -40 || echo '(no error: lines)'
-            echo '```'
-            echo '<details><summary>tail</summary>'
-            echo
-            echo '```'
-            tail -60 /tmp/test.log
-            echo '```'
-            echo '</details>'
-          } > /tmp/body.md
-          gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/comments" \
-            -f body="$(cat /tmp/body.md)" --silent
+          set -o pipefail
+          xcodebuild build \
+            -project PhoneDown.xcodeproj \
+            -scheme PhoneDown \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee /tmp/build.log
+
+      - name: Report failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/report-failure.sh "app build"
+
+  # Unsigned IPA for SideStore to sign on-device. CI never touches a
+  # certificate; the Payload archive is assembled by hand from the built .app.
+  ipa:
+    name: Unsigned IPA
+    runs-on: macos-15
+    needs: app
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Build for device, unsigned
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project PhoneDown.xcodeproj \
+            -scheme PhoneDown \
+            -configuration Release \
+            -derivedDataPath build \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            2>&1 | tee /tmp/build.log
+
+      - name: Package IPA
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/PhoneDown.app Payload/
+          zip -qry PhoneDown.ipa Payload
+          ls -lh PhoneDown.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PhoneDown-unsigned-ipa
+          path: PhoneDown.ipa
+
+      - name: Report failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/report-failure.sh "unsigned IPA"
